@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PiecewiseLab - Piecewise & Polynomial Regression Explorer</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <!-- KaTeX CSS & JS for math rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.75);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .katex {
+            font-size: 1.05em !important;
+            color: inherit;
+        }
+        input[type=range] {
+            accent-color: #6366f1;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-indigo-500 selection:text-white">
+
+    <!-- Header / Navbar -->
+    <header class="border-b border-slate-800 bg-slate-900/80 sticky top-0 z-50 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-gradient-to-tr from-indigo-600 to-violet-600 rounded-xl shadow-lg shadow-indigo-500/30">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">RegressionLab</h1>
+                    <p class="text-xs text-slate-400">Piecewise Constant & Polynomial Regression Visualizer</p>
+                </div>
+            </div>
+
+            <!-- Tab Navigation -->
+            <nav class="flex space-x-1 sm:space-x-2 bg-slate-800/80 p-1.5 rounded-xl border border-slate-700/50">
+                <button onclick="switchTab('lab')" id="tab-lab" class="px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 bg-indigo-600 text-white shadow-sm">
+                    📊 Interactive Fitting
+                </button>
+                <button onclick="switchTab('elbow')" id="tab-elbow" class="px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 text-slate-400 hover:text-white">
+                    📈 Complexity Evaluation
+                </button>
+                <button onclick="switchTab('theory')" id="tab-theory" class="px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 text-slate-400 hover:text-white">
+                    📚 Theory & Formulas
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
+
+        <!-- ================= TAB 1: INTERACTIVE FITTING ================= -->
+        <section id="sec-lab" class="space-y-6">
+
+            <!-- Real-time Summary Cards -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div class="glass-card rounded-xl p-4 text-center border-t-2 border-t-indigo-500">
+                    <div id="metric-knots-title" class="text-[11px] text-slate-400 uppercase font-bold tracking-wider mb-1">Model Complexity</div>
+                    <div id="metric-knots" class="text-2xl sm:text-3xl font-extrabold text-indigo-400 font-mono">2</div>
+                    <div id="metric-segments" class="text-[10px] text-slate-400 mt-0.5">3 Segments</div>
+                </div>
+
+                <div class="glass-card rounded-xl p-4 text-center border-t-2 border-t-rose-500">
+                    <div class="text-[11px] text-slate-400 uppercase font-bold tracking-wider mb-1">Sum of Squared Residuals (SSR)</div>
+                    <div id="metric-ssr" class="text-2xl sm:text-3xl font-extrabold text-rose-400 font-mono">0.00</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5">$\sum (Y_i - \hat{Y}_i)^2$</div>
+                </div>
+
+                <div class="glass-card rounded-xl p-4 text-center border-t-2 border-t-emerald-500">
+                    <div class="text-[11px] text-slate-400 uppercase font-bold tracking-wider mb-1">R-Squared ($R^2$)</div>
+                    <div id="metric-r2" class="text-2xl sm:text-3xl font-extrabold text-emerald-400 font-mono">0.00%</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5">Goodness of Fit</div>
+                </div>
+
+                <div class="glass-card rounded-xl p-4 text-center border-t-2 border-t-amber-500">
+                    <div class="text-[11px] text-slate-400 uppercase font-bold tracking-wider mb-1">Root Mean Square Error (RMSE)</div>
+                    <div id="metric-rmse" class="text-2xl sm:text-3xl font-extrabold text-amber-400 font-mono">0.00</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5">Average Error Margin</div>
+                </div>
+            </div>
+
+            <!-- Main Interactive Controls & Chart -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                <!-- Left Controls (4 Cols) -->
+                <div class="lg:col-span-4 space-y-6">
+                    
+                    <!-- Model Selection & Controls Panel -->
+                    <div class="glass-card rounded-2xl p-5 space-y-5 border-l-4 border-l-indigo-500">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm font-bold text-slate-200">🎛️ Model & Fitting Controls</h3>
+                            <span id="model-badge" class="text-xs bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded font-mono font-bold">Piecewise Constant</span>
+                        </div>
+
+                        <!-- Model Selector -->
+                        <div class="space-y-1.5">
+                            <label for="select-model" class="text-xs text-slate-300 font-semibold">Select Regression Model:</label>
+                            <select id="select-model" onchange="onModelChange()" class="w-full bg-slate-900 border border-slate-700 text-xs text-slate-200 rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                <option value="piecewise" selected>Piecewise Constant Regression (Step Function)</option>
+                                <option value="polynomial">Polynomial Regression (Global Curve)</option>
+                                <option value="spline">Spline Regression (Continuous Piecewise Polynomial)</option>
+                            </select>
+                        </div>
+
+                        <!-- Knots Slider (Piecewise & Spline Mode) -->
+                        <div id="control-piecewise" class="space-y-2">
+                            <div class="flex justify-between items-center text-xs">
+                                <label for="slider-knots" class="text-slate-300 font-semibold">Number of Knots ($K$):</label>
+                                <span id="val-knots" class="font-mono font-extrabold text-indigo-400 text-base">2 Knots</span>
+                            </div>
+                            <input type="range" id="slider-knots" min="0" max="8" value="2" step="1" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                            <div class="flex justify-between text-[10px] font-mono text-slate-400">
+                                <span>0 (No Knots)</span>
+                                <span>4</span>
+                                <span>8 (High Complexity)</span>
+                            </div>
+                        </div>
+
+                        <!-- Polynomial Degree Slider (Polynomial & Spline Mode) -->
+                        <div id="control-polynomial" class="space-y-2 hidden">
+                            <div class="flex justify-between items-center text-xs">
+                                <label id="label-degree" for="slider-degree" class="text-slate-300 font-semibold">Polynomial Order / Degree ($d$):</label>
+                                <span id="val-degree" class="font-mono font-extrabold text-purple-400 text-base">3rd Degree (Cubic)</span>
+                            </div>
+                            <input type="range" id="slider-degree" min="1" max="8" value="3" step="1" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                            <div id="degree-range-labels" class="flex justify-between text-[10px] font-mono text-slate-400">
+                                <span>1 (Linear)</span>
+                                <span>3 (Cubic)</span>
+                                <span>8 (Degree 8)</span>
+                            </div>
+                        </div>
+
+                        <!-- Info Tag -->
+                        <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex items-center justify-between text-xs text-slate-300">
+                            <div>
+                                <span id="model-info-title" class="font-bold text-indigo-300 block">Model Type: Step Function</span>
+                                <span id="model-info-desc" class="text-[10px] text-slate-400">Fits local arithmetic mean $\bar{Y}_k$ in each interval</span>
+                            </div>
+                            <span class="text-lg">📊</span>
+                        </div>
+                    </div>
+
+                    <!-- Dataset Generator Controls -->
+                    <div class="glass-card rounded-2xl p-5 space-y-4">
+                        <h3 class="text-sm font-bold text-slate-200">🎲 Synthetic Data Generator</h3>
+
+                        <!-- Data Pattern Presets -->
+                        <div class="space-y-1.5">
+                            <label class="text-xs text-slate-300">Non-Linear Pattern Preset:</label>
+                            <select id="select-pattern" onchange="generateData()" class="w-full bg-slate-900 border border-slate-700 text-xs text-slate-200 rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                <option value="sine">Sinusoidal Wave (Complex Curved)</option>
+                                <option value="broken_stick" selected>Broken Stick (Single Sharp Bend)</option>
+                                <option value="quadratic">Quadratic / Parabola</option>
+                                <option value="sigmoid">Sigmoidal (S-Curve)</option>
+                                <option value="multi_bend">Multi-Segment Zig-Zag</option>
+                            </select>
+                        </div>
+
+                        <!-- Noise Level Slider -->
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-xs">
+                                <label for="slider-noise" class="text-slate-300">Noise Level ($\sigma$):</label>
+                                <span id="val-noise" class="font-mono font-bold text-indigo-400">12.0</span>
+                            </div>
+                            <input type="range" id="slider-noise" min="0" max="35" value="12" step="1" oninput="generateData()" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                        </div>
+
+                        <!-- Sample Size Slider -->
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-xs">
+                                <label for="slider-n" class="text-slate-300">Sample Size ($N$):</label>
+                                <span id="val-n" class="font-mono font-bold text-indigo-400">80 points</span>
+                            </div>
+                            <input type="range" id="slider-n" min="30" max="250" value="80" step="10" oninput="generateData()" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                        </div>
+
+                        <button onclick="generateData()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold rounded-xl text-slate-200 transition-colors flex items-center justify-center space-x-2">
+                            <span>🔄 Regenerate Random Noise</span>
+                        </button>
+                    </div>
+
+                    <!-- Informational Box -->
+                    <div class="p-4 bg-indigo-950/40 rounded-2xl border border-indigo-800/40 text-xs text-indigo-200 space-y-2">
+                        <div class="font-bold flex items-center gap-1.5">
+                            <span>💡</span> <span>What is Equal-Width Knotting?</span>
+                        </div>
+                        <p class="leading-relaxed text-slate-300 text-[11px]">
+                            Knots ($\xi_1, \xi_2, \dots, \xi_K$) divide the entire range of $X$ from $X_{\min}$ to $X_{\max}$ into equal-width sub-intervals. A separate linear slope is estimated for each segment!
+                        </p>
+                    </div>
+
+                </div>
+
+                <!-- Right Scatter Plot Canvas (8 Cols) -->
+                <div class="lg:col-span-8 glass-card rounded-2xl p-5 flex flex-col justify-between">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3">
+                        <div>
+                            <h3 id="chart-main-title" class="text-sm font-bold text-slate-200">Scatter Plot & Fitted Regression Model</h3>
+                            <p id="chart-main-desc" class="text-[11px] text-slate-400">Vertical dashed lines represent knot locations. Fitted step/curve line is drawn in red/purple.</p>
+                        </div>
+                        <div class="flex items-center space-x-3 text-xs text-slate-400">
+                            <label class="flex items-center space-x-1.5 cursor-pointer">
+                                <input type="checkbox" id="chk-show-knots" checked onchange="updateFitting()" class="rounded bg-slate-800 border-slate-700 text-indigo-600">
+                                <span>Knot Lines</span>
+                            </label>
+                            <label class="flex items-center space-x-1.5 cursor-pointer">
+                                <input type="checkbox" id="chk-show-residuals" onchange="updateFitting()" class="rounded bg-slate-800 border-slate-700 text-indigo-600">
+                                <span>Residual Lines</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Chart Container -->
+                    <div class="relative w-full h-[400px] sm:h-[460px] bg-slate-950/80 rounded-xl border border-slate-800 p-2">
+                        <canvas id="regressionChart"></canvas>
+                    </div>
+
+                    <!-- Knot Locations Legend -->
+                    <div id="knot-locations-bar" class="mt-4 pt-3 border-t border-slate-800 flex flex-wrap gap-2 text-xs font-mono">
+                        <!-- Populated dynamically with knot coordinates -->
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+
+        <!-- ================= TAB 2: SSR VS KNOTS CURVE (ELBOW) ================= -->
+        <section id="sec-elbow" class="hidden space-y-6">
+            <div class="glass-card rounded-2xl p-6 space-y-4 border-l-4 border-l-purple-500">
+                <div class="max-w-3xl space-y-2">
+                    <span class="px-2.5 py-1 bg-purple-500/20 text-purple-300 font-mono text-xs font-bold rounded-full border border-purple-500/30">
+                        Model Evaluation & Overfitting Trade-Off
+                    </span>
+                    <h2 class="text-2xl font-extrabold text-white">Sum of Squared Residuals (SSR) vs. Number of Knots</h2>
+                    <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                        As you add more knots ($K$), the model gains flexibility and the SSR will strictly <strong>decrease</strong>. However, adding too many knots causes the model to fit random noise (<strong>Overfitting</strong>). Look for the "elbow" point where SSR stops decreasing significantly!
+                    </p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Elbow Chart (8 Cols) -->
+                <div class="lg:col-span-8 glass-card rounded-2xl p-5">
+                    <h3 class="text-sm font-bold text-slate-200 mb-2">SSR Decrease Curve Across $K = 0$ to $8$ Knots</h3>
+                    <div class="relative w-full h-[360px] bg-slate-950/80 rounded-xl border border-slate-800 p-2">
+                        <canvas id="elbowChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Analysis Sidebar (4 Cols) -->
+                <div class="lg:col-span-4 glass-card rounded-2xl p-5 space-y-4 flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-200 mb-3">📊 Model Comparison Table</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-slate-300">
+                                <thead class="bg-slate-800/80 text-slate-400 uppercase font-mono border-b border-slate-700">
+                                    <tr>
+                                        <th class="p-2">Knots ($K$)</th>
+                                        <th class="p-2">SSR</th>
+                                        <th class="p-2">$R^2$</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="elbow-table-body" class="divide-y divide-slate-800 font-mono">
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="p-3.5 bg-slate-900/90 rounded-xl border border-slate-800 text-xs text-slate-300 space-y-1">
+                        <span class="font-bold text-amber-400 block">💡 Recommendation:</span>
+                        <p class="text-[11px] leading-relaxed" id="elbow-recommendation">
+                            Select the knot count at the inflection point ("Elbow") to achieve optimal fitting without overfitting.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ================= TAB 3: THEORY & MATH ================= -->
+        <section id="sec-theory" class="hidden space-y-6 animate-fadeIn">
+            <!-- Hero banner -->
+            <div class="glass-card rounded-2xl p-6 sm:p-8 relative overflow-hidden">
+                <div class="absolute -right-10 -bottom-10 w-60 h-60 bg-indigo-600/10 rounded-full blur-3xl"></div>
+                <div class="max-w-3xl space-y-4">
+                    <span class="inline-block px-3 py-1 bg-indigo-500/10 text-indigo-400 rounded-full text-xs font-semibold border border-indigo-500/20">Statistical Modeling Concepts</span>
+                    <h2 class="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">Piecewise Constant vs. Polynomial Regression</h2>
+                    <p class="text-slate-300 leading-relaxed text-sm sm:text-base">
+                        Both methods extend standard linear regression to model non-linear relationships. <strong class="text-indigo-400">Piecewise Constant Regression</strong> divides the domain into discrete segments, while <strong class="text-purple-400">Polynomial Regression</strong> uses higher powers of $X$ to fit a smooth global curve.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Theory Cards Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                <!-- 1. Piecewise Constant -->
+                <div class="glass-card rounded-2xl p-6 border-t-4 border-t-indigo-500 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-base font-bold text-white">1. Piecewise Constant</h3>
+                        <span class="text-xl">📊</span>
+                    </div>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        Partitions domain into segments and fits arithmetic mean $\bar{Y}_k$.
+                    </p>
+                    <div class="p-2.5 bg-slate-900/90 rounded-xl font-mono text-xs text-center border border-slate-800 text-indigo-300">
+                        $$\hat{Y}(x) = \sum \bar{Y}_k I(x \in S_k)$$
+                    </div>
+                </div>
+
+                <!-- 2. Polynomial Regression -->
+                <div class="glass-card rounded-2xl p-6 border-t-4 border-t-purple-500 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-base font-bold text-white">2. Polynomial Regression</h3>
+                        <span class="text-xl">📈</span>
+                    </div>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        Fits a single smooth polynomial curve of degree $d$ across all $X$.
+                    </p>
+                    <div class="p-2.5 bg-slate-900/90 rounded-xl font-mono text-xs text-center border border-slate-800 text-purple-300">
+                        $$\hat{Y}(x) = \sum_{j=0}^{d} \beta_j x^j$$
+                    </div>
+                </div>
+
+                <!-- 3. Spline Regression -->
+                <div class="glass-card rounded-2xl p-6 border-t-4 border-t-emerald-500 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-base font-bold text-white">3. Spline Regression</h3>
+                        <span class="text-xl">〰️</span>
+                    </div>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        Continuous piecewise polynomials of degree $d$ connected at knots $\xi_k$.
+                    </p>
+                    <div class="p-2.5 bg-slate-900/90 rounded-xl font-mono text-xs text-center border border-slate-800 text-emerald-300">
+                        $$\hat{Y}(x) = \sum_{j=0}^{d} \beta_j x^j + \sum_{k=1}^{K} \gamma_k (x - \xi_k)_+^d$$
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800 bg-slate-900/40 py-4 text-center text-xs text-slate-400">
+        <p>© 2026 PiecewiseLab • Interactive Educational Web Application for Statistics & Machine Learning</p>
+    </footer>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // Global State
+        let rawData = { x: [], y: [] };
+        let currentModel = 'piecewise'; // 'piecewise', 'polynomial', or 'spline'
+        let currentKnots = 2;
+        let currentDegree = 3;
+        let regressionChart = null;
+        let elbowChart = null;
+
+        // Audio Effects (Web Audio API)
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playTone(freq, duration = 0.08, type = 'sine') {
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {}
+        }
+
+        // KaTeX helper
+        function renderMath(element = document.body) {
+            if (typeof renderMathInElement === 'function') {
+                renderMathInElement(element, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        // Initialize on load
+        window.onload = function() {
+            setupEventListeners();
+            initCharts();
+            generateData();
+            renderMath();
+        };
+
+        function setupEventListeners() {
+            document.getElementById('slider-knots').addEventListener('input', (e) => {
+                currentKnots = parseInt(e.target.value);
+                document.getElementById('val-knots').innerText = `${currentKnots} ${currentKnots === 1 ? 'Knot' : 'Knots'}`;
+                playTone(350 + currentKnots * 40, 0.05);
+                updateFitting();
+            });
+
+            document.getElementById('slider-degree').addEventListener('input', (e) => {
+                currentDegree = parseInt(e.target.value);
+                document.getElementById('val-degree').innerText = getDegreeLabel(currentDegree);
+                playTone(400 + currentDegree * 40, 0.05);
+                updateFitting();
+            });
+        }
+
+        function getDegreeLabel(d) {
+            if (d === 1) return '1st Degree (Linear)';
+            if (d === 2) return '2nd Degree (Quadratic)';
+            if (d === 3) return '3rd Degree (Cubic)';
+            return `${d}th Degree Polynomial`;
+        }
+
+        function onModelChange() {
+            currentModel = document.getElementById('select-model').value;
+            let piecewiseCtrl = document.getElementById('control-piecewise');
+            let polyCtrl = document.getElementById('control-polynomial');
+            let degreeSlider = document.getElementById('slider-degree');
+            let degreeRangeLabels = document.getElementById('degree-range-labels');
+            let modelBadge = document.getElementById('model-badge');
+            let infoTitle = document.getElementById('model-info-title');
+            let infoDesc = document.getElementById('model-info-desc');
+
+            if (currentModel === 'piecewise') {
+                piecewiseCtrl.classList.remove('hidden');
+                polyCtrl.classList.add('hidden');
+                if (currentKnots === 0) currentKnots = 2;
+                document.getElementById('slider-knots').value = currentKnots;
+                document.getElementById('val-knots').innerText = `${currentKnots} ${currentKnots === 1 ? 'Knot' : 'Knots'}`;
+
+                modelBadge.innerText = 'Piecewise Constant';
+                modelBadge.className = 'text-xs bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded font-mono font-bold';
+                infoTitle.innerText = 'Model Type: Step Function';
+                infoDesc.innerText = 'Fits local arithmetic mean \\bar{Y}_k in each interval';
+            } else if (currentModel === 'polynomial') {
+                piecewiseCtrl.classList.add('hidden');
+                polyCtrl.classList.remove('hidden');
+                degreeSlider.max = 8;
+                degreeRangeLabels.innerHTML = `<span>1 (Linear)</span><span>3 (Cubic)</span><span>8 (Degree 8)</span>`;
+                
+                modelBadge.innerText = 'Polynomial Regression';
+                modelBadge.className = 'text-xs bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded font-mono font-bold';
+                infoTitle.innerText = 'Model Type: Polynomial Curve';
+                infoDesc.innerText = 'Fits equation Y = \\beta_0 + \\beta_1 X + ... + \\beta_d X^d';
+            } else if (currentModel === 'spline') {
+                piecewiseCtrl.classList.remove('hidden');
+                polyCtrl.classList.remove('hidden');
+                if (currentKnots === 0) currentKnots = 2;
+                document.getElementById('slider-knots').value = currentKnots;
+                document.getElementById('val-knots').innerText = `${currentKnots} ${currentKnots === 1 ? 'Knot' : 'Knots'}`;
+
+                degreeSlider.max = 3;
+                if (currentDegree > 3) currentDegree = 3;
+                degreeSlider.value = currentDegree;
+                document.getElementById('val-degree').innerText = getDegreeLabel(currentDegree);
+                degreeRangeLabels.innerHTML = `<span>1 (Linear Spline)</span><span>2 (Quadratic)</span><span>3 (Cubic Spline)</span>`;
+
+                modelBadge.innerText = 'Spline Regression';
+                modelBadge.className = 'text-xs bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-mono font-bold';
+                infoTitle.innerText = 'Model Type: Continuous Spline';
+                infoDesc.innerText = 'Continuous polynomial of degree d with knots \\xi_k (Truncated Power Basis)';
+            }
+            renderMath(infoDesc);
+            playTone(500, 0.08);
+            updateFitting();
+        }
+
+        // Data Generator
+        function generateData() {
+            let pattern = document.getElementById('select-pattern').value;
+            let noiseStdev = parseFloat(document.getElementById('slider-noise').value);
+            let n = parseInt(document.getElementById('slider-n').value);
+
+            document.getElementById('val-noise').innerText = noiseStdev.toFixed(1);
+            document.getElementById('val-n').innerText = `${n} points`;
+
+            let xArr = [];
+            let yArr = [];
+
+            for (let i = 0; i < n; i++) {
+                let x = 5 + (i / (n - 1)) * 90; // Domain X from 5 to 95
+                let trueY = 0;
+
+                if (pattern === 'sine') {
+                    trueY = 50 + 30 * Math.sin((x - 10) * 0.08);
+                } else if (pattern === 'broken_stick') {
+                    trueY = (x < 50) ? (20 + 1.2 * x) : (80 - 0.7 * (x - 50));
+                } else if (pattern === 'quadratic') {
+                    trueY = 20 + 0.025 * Math.pow(x - 50, 2);
+                } else if (pattern === 'sigmoid') {
+                    trueY = 15 + 70 / (1 + Math.exp(-(x - 50) * 0.12));
+                } else if (pattern === 'multi_bend') {
+                    if (x < 30) trueY = 25 + 1.5 * x;
+                    else if (x < 65) trueY = 70 - 1.2 * (x - 30);
+                    else trueY = 28 + 1.8 * (x - 65);
+                }
+
+                // Add Normal random noise
+                let u1 = Math.random(), u2 = Math.random();
+                let randStdNormal = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+                let noise = randStdNormal * noiseStdev;
+
+                xArr.push(x);
+                yArr.push(trueY + noise);
+            }
+
+            rawData = { x: xArr, y: yArr };
+            updateFitting();
+        }
+
+        // Main Fitting Routine
+        function updateFitting() {
+            if (!rawData.x || rawData.x.length === 0) return;
+
+            let fitResult;
+            let knots = [];
+
+            if (currentModel === 'piecewise') {
+                let K = currentKnots;
+                let minX = Math.min(...rawData.x);
+                let maxX = Math.max(...rawData.x);
+                let intervalWidth = (maxX - minX) / (K + 1);
+
+                for (let j = 1; j <= K; j++) {
+                    knots.push(minX + j * intervalWidth);
+                }
+                fitResult = fitPiecewiseConstant(rawData.x, rawData.y, knots);
+
+                document.getElementById('metric-knots-title').innerText = 'Number of Knots ($K$)';
+                document.getElementById('metric-knots').innerText = K;
+                document.getElementById('metric-segments').innerText = `${K + 1} Segments`;
+            } else if (currentModel === 'polynomial') {
+                let degree = currentDegree;
+                fitResult = fitPolynomial(rawData.x, rawData.y, degree);
+
+                document.getElementById('metric-knots-title').innerText = 'Polynomial Degree ($d$)';
+                document.getElementById('metric-knots').innerText = `d = ${degree}`;
+                document.getElementById('metric-segments').innerText = getDegreeLabel(degree);
+            } else if (currentModel === 'spline') {
+                let K = currentKnots;
+                let degree = currentDegree;
+                let minX = Math.min(...rawData.x);
+                let maxX = Math.max(...rawData.x);
+                let intervalWidth = (maxX - minX) / (K + 1);
+
+                for (let j = 1; j <= K; j++) {
+                    knots.push(minX + j * intervalWidth);
+                }
+                fitResult = fitSpline(rawData.x, rawData.y, degree, knots);
+
+                document.getElementById('metric-knots-title').innerText = 'Spline Complexity';
+                document.getElementById('metric-knots').innerText = `K=${K}, d=${degree}`;
+                document.getElementById('metric-segments').innerText = `${K+1} Segments (${getDegreeLabel(degree)})`;
+            }
+
+            renderMath(document.getElementById('metric-knots-title'));
+
+            // Update Metrics UI
+            document.getElementById('metric-ssr').innerText = fitResult.ssr.toFixed(2);
+            document.getElementById('metric-r2').innerText = `${(fitResult.r2 * 100).toFixed(2)}%`;
+            document.getElementById('metric-rmse').innerText = fitResult.rmse.toFixed(2);
+
+            // Update Legend Box
+            let legendBox = document.getElementById('knot-locations-bar');
+            if (currentModel === 'piecewise' || currentModel === 'spline') {
+                if (knots.length === 0) {
+                    legendBox.innerHTML = `<span class="text-slate-500 italic">No knots active.</span>`;
+                } else {
+                    let html = `<span class="text-slate-400 font-sans font-bold">Knot Positions ($\\xi$):</span> `;
+                    knots.forEach((kVal, idx) => {
+                        html += `<span class="px-2 py-0.5 bg-indigo-950 border border-indigo-700/60 text-indigo-300 rounded">$\\xi_{${idx+1}} = ${kVal.toFixed(1)}$</span> `;
+                    });
+                    legendBox.innerHTML = html;
+                }
+            } else {
+                legendBox.innerHTML = `<span class="text-purple-300 font-mono text-xs font-bold">Polynomial Regression Degree ${fitResult.degree} Fit ($\hat{Y} = \sum_{j=0}^{${fitResult.degree}} \\beta_j X^j$)</span>`;
+            }
+            renderMath(legendBox);
+
+            // Update Charts
+            renderMainChart(knots, fitResult);
+            calculateAndRenderElbowCurve();
+        }
+
+        // Piecewise Constant Fitting Engine
+        function fitPiecewiseConstant(xArr, yArr, knots) {
+            let N = xArr.length;
+            let minX = Math.min(...xArr);
+            let maxX = Math.max(...xArr);
+
+            let boundaries = [minX, ...knots, maxX];
+            let numSegments = boundaries.length - 1;
+            let segmentMeans = new Array(numSegments).fill(0);
+            let predY = new Array(N).fill(0);
+
+            let sumOverallY = yArr.reduce((a, b) => a + b, 0);
+            let overallMean = sumOverallY / N;
+
+            for (let seg = 0; seg < numSegments; seg++) {
+                let lower = boundaries[seg];
+                let upper = boundaries[seg + 1];
+                let sumY = 0;
+                let count = 0;
+                let segIndices = [];
+
+                for (let i = 0; i < N; i++) {
+                    let x = xArr[i];
+                    let inSeg = (seg === numSegments - 1) 
+                        ? (x >= lower && x <= upper) 
+                        : (x >= lower && x < upper);
+                    if (inSeg) {
+                        sumY += yArr[i];
+                        count++;
+                        segIndices.push(i);
+                    }
+                }
+
+                let meanVal = (count > 0) ? (sumY / count) : overallMean;
+                segmentMeans[seg] = meanVal;
+
+                segIndices.forEach(i => {
+                    predY[i] = meanVal;
+                });
+            }
+
+            let ssr = 0;
+            let sumY = yArr.reduce((a, b) => a + b, 0);
+            let meanY = sumY / N;
+            let sst = 0;
+
+            for (let i = 0; i < N; i++) {
+                let err = yArr[i] - predY[i];
+                ssr += err * err;
+                sst += (yArr[i] - meanY) * (yArr[i] - meanY);
+            }
+
+            let r2 = Math.max(0, 1 - (ssr / (sst || 1)));
+            let rmse = Math.sqrt(ssr / N);
+
+            return { predY, ssr, r2, rmse, knots, boundaries, segmentMeans };
+        }
+
+        // Spline OLS Fitting Engine (Truncated Power Basis)
+        function fitSpline(xArr, yArr, degree, knots) {
+            let N = xArr.length;
+            let minX = Math.min(...xArr);
+            let maxX = Math.max(...xArr);
+            let rangeX = (maxX - minX) || 1;
+
+            let zArr = xArr.map(x => (x - minX) / rangeX);
+            let zKnots = knots.map(k => (k - minX) / rangeX);
+
+            let numCols = (degree + 1) + zKnots.length;
+            let ZTZ = Array.from({ length: numCols }, () => new Array(numCols).fill(0));
+            let ZTY = new Array(numCols).fill(0);
+
+            let Z = [];
+            for (let i = 0; i < N; i++) {
+                let z = zArr[i];
+                let row = [];
+                let zp = 1;
+                for (let d = 0; d <= degree; d++) {
+                    row.push(zp);
+                    zp *= z;
+                }
+                zKnots.forEach(zk => {
+                    let diff = Math.max(0, z - zk);
+                    row.push(Math.pow(diff, degree));
+                });
+                Z.push(row);
+            }
+
+            for (let i = 0; i < N; i++) {
+                let y = yArr[i];
+                for (let r = 0; r < numCols; r++) {
+                    ZTY[r] += Z[i][r] * y;
+                    for (let c = 0; c < numCols; c++) {
+                        ZTZ[r][c] += Z[i][r] * Z[i][c];
+                    }
+                }
+            }
+
+            let coeffs = solveLinearSystem(ZTZ, ZTY) || new Array(numCols).fill(0);
+
+            function evalX(x) {
+                let z = (x - minX) / rangeX;
+                let val = 0;
+                let zp = 1;
+                for (let d = 0; d <= degree; d++) {
+                    val += coeffs[d] * zp;
+                    zp *= z;
+                }
+                zKnots.forEach((zk, idx) => {
+                    let diff = Math.max(0, z - zk);
+                    val += coeffs[(degree + 1) + idx] * Math.pow(diff, degree);
+                });
+                return val;
+            }
+
+            let predY = xArr.map(x => evalX(x));
+            let ssr = 0, sst = 0;
+            let meanY = yArr.reduce((a, b) => a + b, 0) / N;
+
+            for (let i = 0; i < N; i++) {
+                let err = yArr[i] - predY[i];
+                ssr += err * err;
+                sst += (yArr[i] - meanY) * (yArr[i] - meanY);
+            }
+
+            let r2 = Math.max(0, 1 - (ssr / (sst || 1)));
+            let rmse = Math.sqrt(ssr / N);
+
+            return { predY, ssr, r2, rmse, evalX, degree, knots };
+        }
+
+        // Polynomial OLS Fitting Engine (Gaussian Elimination on Normalized Vandermonde Matrix)
+        function solveLinearSystem(A, b) {
+            let n = A.length;
+            let M = A.map((row, i) => [...row, b[i]]);
+
+            for (let i = 0; i < n; i++) {
+                let maxRow = i;
+                for (let k = i + 1; k < n; k++) {
+                    if (Math.abs(M[k][i]) > Math.abs(M[maxRow][i])) maxRow = k;
+                }
+                [M[i], M[maxRow]] = [M[maxRow], M[i]];
+
+                if (Math.abs(M[i][i]) < 1e-12) return null;
+
+                let pivot = M[i][i];
+                for (let j = i; j <= n; j++) M[i][j] /= pivot;
+
+                for (let k = 0; k < n; k++) {
+                    if (k !== i) {
+                        let factor = M[k][i];
+                        for (let j = i; j <= n; j++) M[k][j] -= factor * M[i][j];
+                    }
+                }
+            }
+            return M.map(row => row[n]);
+        }
+
+        function fitPolynomial(xArr, yArr, degree) {
+            let N = xArr.length;
+            let minX = Math.min(...xArr);
+            let maxX = Math.max(...xArr);
+            let rangeX = (maxX - minX) || 1;
+
+            let zArr = xArr.map(x => 2 * (x - minX) / rangeX - 1);
+            let cols = degree + 1;
+            let ZTZ = Array.from({ length: cols }, () => new Array(cols).fill(0));
+            let ZTY = new Array(cols).fill(0);
+
+            for (let i = 0; i < N; i++) {
+                let z = zArr[i];
+                let y = yArr[i];
+                let zPowers = [1];
+                for (let p = 1; p <= degree * 2; p++) zPowers.push(zPowers[p - 1] * z);
+
+                for (let r = 0; r < cols; r++) {
+                    ZTY[r] += zPowers[r] * y;
+                    for (let c = 0; c < cols; c++) ZTZ[r][c] += zPowers[r + c];
+                }
+            }
+
+            let coeffs = solveLinearSystem(ZTZ, ZTY) || new Array(cols).fill(0);
+
+            function evalZ(z) {
+                let val = 0, zp = 1;
+                for (let r = 0; r < cols; r++) {
+                    val += coeffs[r] * zp;
+                    zp *= z;
+                }
+                return val;
+            }
+
+            function evalX(x) {
+                let z = 2 * (x - minX) / rangeX - 1;
+                return evalZ(z);
+            }
+
+            let predY = xArr.map(x => evalX(x));
+            let ssr = 0, sst = 0;
+            let meanY = yArr.reduce((a, b) => a + b, 0) / N;
+
+            for (let i = 0; i < N; i++) {
+                let err = yArr[i] - predY[i];
+                ssr += err * err;
+                sst += (yArr[i] - meanY) * (yArr[i] - meanY);
+            }
+
+            let r2 = Math.max(0, 1 - (ssr / (sst || 1)));
+            let rmse = Math.sqrt(ssr / N);
+
+            return { predY, ssr, r2, rmse, evalX, degree };
+        }
+
+        // Chart Engine
+        function initCharts() {
+            const ctx1 = document.getElementById('regressionChart').getContext('2d');
+            regressionChart = new Chart(ctx1, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Observed Data (X, Y)',
+                            data: [],
+                            backgroundColor: 'rgba(99, 102, 241, 0.65)',
+                            borderColor: '#818cf8',
+                            borderWidth: 1,
+                            pointRadius: 5,
+                            pointHoverRadius: 7
+                        },
+                        {
+                            label: 'Fitted Model Curve',
+                            data: [],
+                            type: 'line',
+                            borderColor: '#f43f5e',
+                            borderWidth: 3.5,
+                            fill: false,
+                            pointRadius: 0,
+                            tension: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'X (Predictor Variable)', color: '#94a3b8' },
+                            ticks: { color: '#64748b' },
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Y (Response Variable)', color: '#94a3b8' },
+                            ticks: { color: '#64748b' },
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#cbd5e1', font: { family: 'Plus Jakarta Sans' } } },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => `X: ${ctx.parsed.x.toFixed(2)}, Y: ${ctx.parsed.y.toFixed(2)}`
+                            }
+                        }
+                    }
+                }
+            });
+
+            const ctx2 = document.getElementById('elbowChart').getContext('2d');
+            elbowChart = new Chart(ctx2, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'SSR (Sum of Squared Residuals)',
+                        data: [],
+                        borderColor: '#a855f7',
+                        backgroundColor: 'rgba(168, 85, 247, 0.15)',
+                        borderWidth: 3,
+                        fill: true,
+                        pointRadius: 6,
+                        pointHoverRadius: 9,
+                        pointBackgroundColor: '#a855f7'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Model Complexity', color: '#94a3b8' },
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                        },
+                        y: {
+                            title: { display: true, text: 'SSR', color: '#94a3b8' },
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        function renderMainChart(knots, fitResult) {
+            if (!regressionChart) return;
+
+            let showKnots = document.getElementById('chk-show-knots').checked;
+            let showResiduals = document.getElementById('chk-show-residuals').checked;
+
+            let scatterPoints = rawData.x.map((xVal, i) => ({ x: xVal, y: rawData.y[i] }));
+            let linePoints = [];
+
+            if (currentModel === 'piecewise') {
+                let minX = Math.min(...rawData.x);
+                let maxX = Math.max(...rawData.x);
+                let numSegments = fitResult.boundaries.length - 1;
+                for (let seg = 0; seg < numSegments; seg++) {
+                    let xStart = (seg === 0) ? minX : fitResult.boundaries[seg];
+                    let xEnd = (seg === numSegments - 1) ? maxX : fitResult.boundaries[seg + 1];
+                    let meanVal = fitResult.segmentMeans[seg];
+
+                    linePoints.push({ x: xStart, y: meanVal });
+                    linePoints.push({ x: xEnd, y: meanVal });
+                }
+                regressionChart.data.datasets[1].borderColor = '#f43f5e';
+            } else if (currentModel === 'polynomial') {
+                let minX = Math.min(...rawData.x);
+                let maxX = Math.max(...rawData.x);
+                let steps = 150;
+                for (let s = 0; s <= steps; s++) {
+                    let xVal = minX + (s / steps) * (maxX - minX);
+                    let yVal = fitResult.evalX(xVal);
+                    linePoints.push({ x: xVal, y: yVal });
+                }
+                regressionChart.data.datasets[1].borderColor = '#c084fc';
+            } else if (currentModel === 'spline') {
+                let minX = Math.min(...rawData.x);
+                let maxX = Math.max(...rawData.x);
+                let steps = 200;
+                for (let s = 0; s <= steps; s++) {
+                    let xVal = minX + (s / steps) * (maxX - minX);
+                    let yVal = fitResult.evalX(xVal);
+                    linePoints.push({ x: xVal, y: yVal });
+                }
+                regressionChart.data.datasets[1].borderColor = '#10b981';
+            }
+
+            regressionChart.data.datasets[0].data = scatterPoints;
+            regressionChart.data.datasets[1].data = linePoints;
+
+            regressionChart.options.plugins.annotationPlugin = {
+                knots: ((currentModel === 'piecewise' || currentModel === 'spline') && showKnots) ? knots : [],
+                showResiduals: showResiduals,
+                rawData: rawData,
+                predY: fitResult.predY
+            };
+
+            regressionChart.update();
+        }
+
+        Chart.register({
+            id: 'customKnotOverlay',
+            afterDraw: (chart) => {
+                let opts = chart.options.plugins.annotationPlugin;
+                if (!opts) return;
+
+                let ctx = chart.ctx;
+                let xAxis = chart.scales.x;
+                let yAxis = chart.scales.y;
+
+                if (opts.knots && opts.knots.length > 0) {
+                    ctx.save();
+                    ctx.setLineDash([6, 6]);
+                    ctx.strokeStyle = 'rgba(245, 158, 11, 0.8)';
+                    ctx.lineWidth = 2;
+
+                    opts.knots.forEach((kVal, idx) => {
+                        let xPos = xAxis.getPixelForValue(kVal);
+                        ctx.beginPath();
+                        ctx.moveTo(xPos, yAxis.top);
+                        ctx.lineTo(xPos, yAxis.bottom);
+                        ctx.stroke();
+
+                        ctx.fillStyle = '#f59e0b';
+                        ctx.font = 'bold 11px Plus Jakarta Sans';
+                        ctx.fillText(`Knot ${idx+1}`, xPos + 4, yAxis.top + 14);
+                    });
+                    ctx.restore();
+                }
+
+                if (opts.showResiduals && opts.rawData && opts.predY) {
+                    ctx.save();
+                    ctx.strokeStyle = 'rgba(244, 63, 94, 0.4)';
+                    ctx.lineWidth = 1;
+
+                    for (let i = 0; i < opts.rawData.x.length; i++) {
+                        let xPos = xAxis.getPixelForValue(opts.rawData.x[i]);
+                        let yActual = yAxis.getPixelForValue(opts.rawData.y[i]);
+                        let yFitted = yAxis.getPixelForValue(opts.predY[i]);
+
+                        ctx.beginPath();
+                        ctx.moveTo(xPos, yActual);
+                        ctx.lineTo(xPos, yFitted);
+                        ctx.stroke();
+                    }
+                    ctx.restore();
+                }
+            }
+        });
+
+        function calculateAndRenderElbowCurve() {
+            if (!elbowChart) return;
+
+            let ssrValues = [];
+            let r2Values = [];
+            let labels = [];
+
+            let minX = Math.min(...rawData.x);
+            let maxX = Math.max(...rawData.x);
+
+            if (currentModel === 'piecewise') {
+                let kValues = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+                kValues.forEach(K => {
+                    let intervalWidth = (maxX - minX) / (K + 1);
+                    let knots = [];
+                    for (let j = 1; j <= K; j++) knots.push(minX + j * intervalWidth);
+
+                    let fit = fitPiecewiseConstant(rawData.x, rawData.y, knots);
+                    ssrValues.push(fit.ssr);
+                    r2Values.push(fit.r2);
+                });
+                labels = kValues.map(k => `${k} ${k === 1 ? 'Knot' : 'Knots'}`);
+            } else if (currentModel === 'polynomial') {
+                let dValues = [1, 2, 3, 4, 5, 6, 7, 8];
+                dValues.forEach(d => {
+                    let fit = fitPolynomial(rawData.x, rawData.y, d);
+                    ssrValues.push(fit.ssr);
+                    r2Values.push(fit.r2);
+                });
+                labels = dValues.map(d => `Degree ${d}`);
+            } else if (currentModel === 'spline') {
+                let kValues = [1, 2, 3, 4, 5, 6, 7, 8];
+                kValues.forEach(K => {
+                    let intervalWidth = (maxX - minX) / (K + 1);
+                    let knots = [];
+                    for (let j = 1; j <= K; j++) knots.push(minX + j * intervalWidth);
+
+                    let fit = fitSpline(rawData.x, rawData.y, currentDegree, knots);
+                    ssrValues.push(fit.ssr);
+                    r2Values.push(fit.r2);
+                });
+                labels = kValues.map(k => `${k} ${k === 1 ? 'Knot' : 'Knots'} (d=${currentDegree})`);
+            }
+
+            elbowChart.data.labels = labels;
+            elbowChart.data.datasets[0].data = ssrValues;
+            elbowChart.update();
+
+            let tbody = document.getElementById('elbow-table-body');
+            tbody.innerHTML = '';
+
+            let maxDropIdx = 1;
+            let maxDrop = 0;
+
+            labels.forEach((lbl, idx) => {
+                let tr = document.createElement('tr');
+                let isCurrent = (currentModel === 'piecewise') 
+                    ? (idx === currentKnots) 
+                    : (currentModel === 'polynomial') 
+                        ? (idx + 1 === currentDegree)
+                        : (idx + 1 === currentKnots);
+
+                if (idx > 0) {
+                    let drop = ssrValues[idx - 1] - ssrValues[idx];
+                    if (drop > maxDrop) {
+                        maxDrop = drop;
+                        maxDropIdx = idx;
+                    }
+                }
+
+                tr.className = isCurrent ? "bg-indigo-950/70 text-indigo-300 font-bold" : "hover:bg-slate-800/40";
+                tr.innerHTML = `
+                    <td class="p-2">${lbl} ${isCurrent ? '👈' : ''}</td>
+                    <td class="p-2">${ssrValues[idx].toFixed(1)}</td>
+                    <td class="p-2">${(r2Values[idx] * 100).toFixed(1)}%</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('elbow-recommendation').innerText = 
+                `Based on the SSR curve, level ${labels[maxDropIdx]} provides the steepest reduction in residual error.`;
+        }
+
+        // Tab Switcher
+        function switchTab(tabName) {
+            ['lab', 'elbow', 'theory'].forEach(t => {
+                document.getElementById(`sec-${t}`).classList.add('hidden');
+                let btn = document.getElementById(`tab-${t}`);
+                btn.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm');
+                btn.classList.add('text-slate-400');
+            });
+
+            document.getElementById(`sec-${tabName}`).classList.remove('hidden');
+            let activeBtn = document.getElementById(`tab-${tabName}`);
+            activeBtn.classList.add('bg-indigo-600', 'text-white', 'shadow-sm');
+            activeBtn.classList.remove('text-slate-400');
+
+            if (tabName === 'theory') {
+                renderMath(document.getElementById('sec-theory'));
+            }
+        }
+    </script>
+</body>
+</html>
